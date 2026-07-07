@@ -1,9 +1,21 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
-      <section className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
+      <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="mb-8 flex justify-center">
+          <Image
+            src="/logo-bp.png"
+            alt="Banco de Profissionais Piso de Concreto"
+            width={220}
+            height={220}
+            priority
+            className="rounded-[2rem] shadow-2xl shadow-orange-950/30"
+          />
+        </div>
+
         <div className="max-w-3xl">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-orange-400">
             Banco de profissionais
