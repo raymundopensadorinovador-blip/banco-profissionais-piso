@@ -211,9 +211,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (targetUrl) {
-      oneSignalPayload.url = targetUrl;
-      oneSignalPayload.web_url = targetUrl;
-    }
+        oneSignalPayload.web_url = targetUrl;
+      }
 
     if (imageUrl) {
       oneSignalPayload.chrome_web_image = imageUrl;
