@@ -100,10 +100,10 @@ export default function AdminNotificationsPage() {
 
   const [title, setTitle] = useState("Oportunidade para profissionais de piso");
   const [message, setMessage] = useState(
-    "Temos uma nova chamada para profissionais cadastrados. Toque na notificação para falar com a equipe."
+    "Temos uma nova chamada para profissionais cadastrados. Toque na notificação para ver os detalhes e falar com a equipe."
   );
   const [targetUrl, setTargetUrl] = useState(
-    "https://banco-profissionais-piso.vercel.app"
+    "https://banco-profissionais-piso.vercel.app/oportunidade"
   );
   const [imageUrl, setImageUrl] = useState("");
 
