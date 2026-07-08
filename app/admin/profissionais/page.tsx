@@ -332,7 +332,12 @@ export default function AdminProfessionalsPage() {
               piso de concreto, carpintaria, armação e apoio operacional.
             </p>
           </div>
-
+          <Link
+  href="/admin/notificacoes"
+  className="rounded-xl bg-orange-500 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-orange-600"
+>
+  Enviar notificações
+</Link>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/cadastro-profissional"
