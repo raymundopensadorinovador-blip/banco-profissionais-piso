@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import OneSignal from "react-onesignal";
 import { supabase } from "@/lib/supabaseClient";
 
 type RoleOption = {
@@ -83,6 +84,13 @@ export default function CadastroProfissionalPage() {
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [createdProfessionalId, setCreatedProfessionalId] = useState<string | null>(
+    null
+  );
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushSuccessMessage, setPushSuccessMessage] = useState("");
+  const [pushErrorMessage, setPushErrorMessage] = useState("");
 
   const [fullName, setFullName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -235,7 +243,9 @@ export default function CadastroProfissionalPage() {
     setSubmitting(true);
     setSuccessMessage("");
     setErrorMessage("");
-
+    setCreatedProfessionalId(null);
+    setPushSuccessMessage("");
+    setPushErrorMessage("");
     const selectedRole = options.roles.find((role) => role.key === mainRoleKey);
     const selectedAvailability = options.availability.find(
       (availability) => availability.key === availabilityKey
@@ -280,7 +290,7 @@ export default function CadastroProfissionalPage() {
       return;
     }
 
-    const { error } = await supabase.rpc("create_professional_application_v3", {
+    const { data, error } = await supabase.rpc("create_professional_application_v3", {
       p_full_name: fullName,
       p_whatsapp: whatsapp,
       p_city: city,
@@ -307,11 +317,86 @@ export default function CadastroProfissionalPage() {
       return;
     }
 
+    setCreatedProfessionalId(data as string);
+
     setSuccessMessage(
       "Cadastro enviado com sucesso. Sua indicação foi registrada, e nossa equipe poderá entrar em contato quando houver uma oportunidade compatível com seu perfil."
     );
     resetForm();
     setSubmitting(false);
+  }
+
+  async function handleEnablePushNotifications() {
+    if (!createdProfessionalId) {
+      setPushErrorMessage(
+        "Não foi possível identificar o cadastro para ativar as notificações."
+      );
+      return;
+    }
+  
+    setPushLoading(true);
+    setPushSuccessMessage("");
+    setPushErrorMessage("");
+  
+    try {
+      const isSupported = OneSignal.Notifications.isPushSupported();
+  
+      if (!isSupported) {
+        setPushErrorMessage(
+          "Este navegador não oferece suporte para notificações push."
+        );
+        setPushLoading(false);
+        return;
+      }
+  
+      await OneSignal.login(createdProfessionalId);
+  
+      await OneSignal.Notifications.requestPermission();
+  
+      const hasPermission = OneSignal.Notifications.permission;
+  
+      if (!hasPermission) {
+        await supabase.rpc("mark_professional_push_disabled", {
+          p_professional_id: createdProfessionalId,
+          p_permission_status: "denied",
+        });
+  
+        setPushErrorMessage(
+          "As notificações não foram ativadas. Para receber avisos, permita notificações deste site no navegador."
+        );
+        setPushLoading(false);
+        return;
+      }
+  
+      await OneSignal.User.PushSubscription.optIn();
+  
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+  
+      const subscriptionId = OneSignal.User.PushSubscription.id ?? "";
+  
+      const { error } = await supabase.rpc("mark_professional_push_enabled", {
+        p_professional_id: createdProfessionalId,
+        p_onesignal_subscription_id: subscriptionId,
+        p_permission_status: "granted",
+      });
+  
+      if (error) {
+        throw error;
+      }
+  
+      setPushSuccessMessage(
+        "Notificações ativadas com sucesso. Agora você poderá receber avisos de oportunidades neste dispositivo."
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível ativar as notificações.";
+  
+      setPushErrorMessage(message);
+    } finally {
+      setPushLoading(false);
+    }
   }
 
   return (
@@ -328,6 +413,44 @@ export default function CadastroProfissionalPage() {
                 Cadastro enviado
               </strong>
               <p className="mt-1 text-emerald-100">{successMessage}</p>
+              {createdProfessionalId ? (
+  <div className="mt-4 rounded-xl border border-emerald-700/70 bg-emerald-900/50 p-4">
+    <strong className="block text-sm text-white">
+      Receba oportunidades no celular
+    </strong>
+
+    <p className="mt-1 text-sm leading-6 text-emerald-100">
+      Ative as notificações para receber avisos quando houver chamadas ou
+      oportunidades compatíveis com seu perfil.
+    </p>
+
+    <button
+      type="button"
+      onClick={handleEnablePushNotifications}
+      disabled={pushLoading}
+      className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-bold text-emerald-950 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pushLoading ? "Ativando notificações..." : "Ativar notificações"}
+    </button>
+
+    <p className="mt-2 text-xs leading-5 text-emerald-100/80">
+      No Android e PC, basta permitir notificações no navegador. No iPhone,
+      pode ser necessário adicionar o app à Tela de Início.
+    </p>
+
+    {pushSuccessMessage ? (
+      <div className="mt-3 rounded-lg bg-emerald-800/70 p-3 text-sm text-white">
+        {pushSuccessMessage}
+      </div>
+    ) : null}
+
+    {pushErrorMessage ? (
+      <div className="mt-3 rounded-lg bg-red-950/80 p-3 text-sm text-red-100">
+        {pushErrorMessage}
+      </div>
+    ) : null}
+  </div>
+) : null}
             </div>
 
             <button
