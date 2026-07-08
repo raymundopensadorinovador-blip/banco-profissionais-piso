@@ -325,7 +325,13 @@ export default function AdminNotificationsPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error ?? "Não foi possível enviar notificação.");
+        const details = result.details
+          ? ` Detalhes: ${JSON.stringify(result.details)}`
+          : "";
+      
+        throw new Error(
+          `${result.error ?? "Não foi possível enviar notificação."}${details}`
+        );
       }
 
       setSuccessMessage(

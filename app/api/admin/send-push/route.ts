@@ -32,7 +32,15 @@ function cleanString(value: unknown) {
 }
 
 function uniqueValues(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function normalizeOneSignalError(value: unknown) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "OneSignal recusou o envio, mas não retornou detalhes legíveis.";
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -129,23 +137,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (targetProfessionalIds.length > 20000) {
-      return NextResponse.json(
-        { error: "O limite por envio é de 20.000 destinatários." },
-        { status: 400 }
-      );
-    }
-
-    const serviceSupabase = createClient(
-      supabaseUrl,
-      supabaseServiceRoleKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
+    const serviceSupabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
 
     const { data: targets, error: targetsError } = await serviceSupabase
       .from("professionals")
@@ -153,8 +150,7 @@ export async function POST(request: NextRequest) {
         "id, full_name, onesignal_external_id, onesignal_subscription_id"
       )
       .in("id", targetProfessionalIds)
-      .eq("push_enabled", true)
-      .not("onesignal_external_id", "is", null);
+      .eq("push_enabled", true);
 
     if (targetsError) {
       throw targetsError;
@@ -162,17 +158,23 @@ export async function POST(request: NextRequest) {
 
     const professionals = (targets ?? []) as ProfessionalTarget[];
 
+    const subscriptionIds = uniqueValues(
+      professionals
+        .map((professional) => professional.onesignal_subscription_id ?? "")
+        .filter(Boolean)
+    );
+
     const externalIds = uniqueValues(
       professionals
         .map((professional) => professional.onesignal_external_id ?? "")
         .filter(Boolean)
     );
 
-    if (externalIds.length === 0) {
+    if (subscriptionIds.length === 0 && externalIds.length === 0) {
       return NextResponse.json(
         {
           error:
-            "Nenhum profissional selecionado possui notificação push ativa.",
+            "Nenhum profissional selecionado possui inscrição válida no OneSignal.",
         },
         { status: 400 }
       );
@@ -182,10 +184,6 @@ export async function POST(request: NextRequest) {
 
     const oneSignalPayload: Record<string, unknown> = {
       app_id: oneSignalAppId,
-      target_channel: "push",
-      include_aliases: {
-        external_id: externalIds,
-      },
       headings: {
         en: title,
         pt: title,
@@ -197,10 +195,20 @@ export async function POST(request: NextRequest) {
       name: `BP Piso - ${title.slice(0, 80)}`,
       chrome_web_icon: `${appOrigin}/icons/icon-192.png`,
       firefox_icon: `${appOrigin}/icons/icon-192.png`,
+      isAnyWeb: true,
       data: {
         source: "banco_profissionais_piso",
       },
     };
+
+    if (subscriptionIds.length > 0) {
+      oneSignalPayload.include_subscription_ids = subscriptionIds;
+    } else {
+      oneSignalPayload.target_channel = "push";
+      oneSignalPayload.include_aliases = {
+        external_id: externalIds,
+      };
+    }
 
     if (targetUrl) {
       oneSignalPayload.url = targetUrl;
@@ -224,13 +232,36 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const oneSignalResponseData = await oneSignalResponse.json();
+    const oneSignalResponseText = await oneSignalResponse.text();
+
+    let oneSignalResponseData: unknown = oneSignalResponseText;
+
+    try {
+      oneSignalResponseData = JSON.parse(oneSignalResponseText);
+    } catch {
+      oneSignalResponseData = {
+        raw: oneSignalResponseText,
+      };
+    }
+
+    console.error("OneSignal response:", {
+      ok: oneSignalResponse.ok,
+      status: oneSignalResponse.status,
+      body: oneSignalResponseData,
+    });
 
     const campaignStatus = oneSignalResponse.ok ? "sent" : "failed";
+
     const oneSignalNotificationId =
+      typeof oneSignalResponseData === "object" &&
+      oneSignalResponseData !== null &&
+      "id" in oneSignalResponseData &&
       typeof oneSignalResponseData.id === "string"
         ? oneSignalResponseData.id
         : null;
+
+    const recipientsCount =
+      subscriptionIds.length > 0 ? subscriptionIds.length : externalIds.length;
 
     const { data: campaign, error: campaignError } = await serviceSupabase
       .from("professional_push_campaigns")
@@ -240,13 +271,13 @@ export async function POST(request: NextRequest) {
         target_url: targetUrl || null,
         image_url: imageUrl || null,
         filters,
-        recipients_count: externalIds.length,
+        recipients_count: recipientsCount,
         onesignal_notification_id: oneSignalNotificationId,
         onesignal_response: oneSignalResponseData,
         status: campaignStatus,
         error_message: oneSignalResponse.ok
           ? null
-          : JSON.stringify(oneSignalResponseData),
+          : normalizeOneSignalError(oneSignalResponseData),
         created_by: userData.user.id,
       })
       .select("id")
@@ -276,6 +307,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "OneSignal recusou o envio.",
+          oneSignalStatus: oneSignalResponse.status,
           details: oneSignalResponseData,
           campaignId: campaign?.id ?? null,
         },
@@ -287,7 +319,9 @@ export async function POST(request: NextRequest) {
       ok: true,
       campaignId: campaign?.id ?? null,
       onesignalNotificationId: oneSignalNotificationId,
-      recipientsCount: externalIds.length,
+      recipientsCount,
+      targetingMode:
+        subscriptionIds.length > 0 ? "subscription_ids" : "external_id",
       response: oneSignalResponseData,
     });
   } catch (error) {
@@ -295,6 +329,8 @@ export async function POST(request: NextRequest) {
       error instanceof Error
         ? error.message
         : "Não foi possível enviar a notificação.";
+
+    console.error("Erro ao enviar push:", error);
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
