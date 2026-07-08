@@ -88,6 +88,8 @@ export default function CadastroProfissionalPage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [city, setCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [referredByName, setReferredByName] = useState("");
+  const [referredByPhone, setReferredByPhone] = useState("");
   const [mainRoleKey, setMainRoleKey] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
   const [availabilityKey, setAvailabilityKey] = useState("");
@@ -212,7 +214,8 @@ export default function CadastroProfissionalPage() {
     setWhatsapp("");
     setCity("");
     setNeighborhood("");
-    setMainRoleKey("");
+    setReferredByName("");
+    setReferredByPhone("");
     setExperienceYears("");
     setAvailabilityKey("");
     setAcceptsTravel(false);
@@ -259,6 +262,12 @@ export default function CadastroProfissionalPage() {
       );
     });
 
+    if (!referredByName.trim()) {
+      setErrorMessage("Informe o nome de quem te indicou para continuar.");
+      setSubmitting(false);
+      return;
+    }
+
     if (!selectedRole) {
       setErrorMessage("Escolha a função principal.");
       setSubmitting(false);
@@ -271,7 +280,7 @@ export default function CadastroProfissionalPage() {
       return;
     }
 
-    const { error } = await supabase.rpc("create_professional_application", {
+    const { error } = await supabase.rpc("create_professional_application_v3", {
       p_full_name: fullName,
       p_whatsapp: whatsapp,
       p_city: city,
@@ -288,6 +297,8 @@ export default function CadastroProfissionalPage() {
       p_skills: selectedSkills,
       p_experiences: filledExperiences,
       p_references: filledReferences,
+      p_referred_by_name: referredByName,
+      p_referred_by_phone: referredByPhone,
     });
 
     if (error) {
@@ -297,7 +308,7 @@ export default function CadastroProfissionalPage() {
     }
 
     setSuccessMessage(
-      "Cadastro enviado com sucesso. Nossa equipe poderá entrar em contato quando houver uma oportunidade compatível com seu perfil."
+      "Cadastro enviado com sucesso. Sua indicação foi registrada, e nossa equipe poderá entrar em contato quando houver uma oportunidade compatível com seu perfil."
     );
     resetForm();
     setSubmitting(false);
@@ -305,6 +316,32 @@ export default function CadastroProfissionalPage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
+      {successMessage ? (
+        <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border border-emerald-700 bg-emerald-950 p-5 text-sm leading-6 text-emerald-50 shadow-2xl shadow-black/50 sm:bottom-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-base font-black text-white">
+              ✓
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <strong className="block text-base text-white">
+                Cadastro enviado
+              </strong>
+              <p className="mt-1 text-emerald-100">{successMessage}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSuccessMessage("")}
+              className="rounded-lg px-2 py-1 text-lg font-bold text-emerald-100 hover:bg-emerald-900"
+              aria-label="Fechar mensagem de sucesso"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <section className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <Link
@@ -342,12 +379,6 @@ export default function CadastroProfissionalPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {successMessage ? (
-              <div className="rounded-2xl border border-emerald-700 bg-emerald-950/70 p-5 text-sm leading-6 text-emerald-100">
-                {successMessage}
-              </div>
-            ) : null}
-
             {errorMessage ? (
               <div className="rounded-2xl border border-red-700 bg-red-950/70 p-5 text-sm leading-6 text-red-100">
                 {errorMessage}
@@ -413,6 +444,56 @@ export default function CadastroProfissionalPage() {
                 </label>
               </div>
             </section>
+
+            <section className="rounded-3xl border border-orange-800/60 bg-orange-950/20 p-5 sm:p-6">
+  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-400">
+        Indicação
+      </p>
+
+      <h2 className="mt-2 text-2xl font-bold text-white">
+        Indique e dobre suas chances
+      </h2>
+
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-100/80">
+        Informe quem te indicou para este cadastro. Cadastros com indicação
+        ficam mais fáceis de validar e podem ter prioridade quando surgir uma
+        oportunidade compatível.
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+    <label className="block">
+      <span className="text-sm font-medium text-zinc-100">
+        Nome de quem te indicou *
+      </span>
+      <input
+        value={referredByName}
+        onChange={(event) => setReferredByName(event.target.value)}
+        required
+        className="mt-2 w-full rounded-xl border border-orange-700/60 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+        placeholder="Ex: Juliano, encarregado, empresa ou contato"
+      />
+    </label>
+
+    <label className="block">
+      <span className="text-sm font-medium text-zinc-100">
+        WhatsApp de quem te indicou
+      </span>
+      <input
+        value={referredByPhone}
+        onChange={(event) => setReferredByPhone(event.target.value)}
+        className="mt-2 w-full rounded-xl border border-orange-700/60 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+        placeholder="Ex: (19) 99999-9999"
+      />
+      <span className="mt-2 block text-xs leading-5 text-orange-100/60">
+        Opcional, mas ajuda nossa equipe a confirmar a indicação.
+      </span>
+    </label>
+  </div>
+</section> 
 
             <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
               <h2 className="text-xl font-bold text-white">
@@ -792,7 +873,9 @@ export default function CadastroProfissionalPage() {
                 <span className="text-sm leading-6 text-zinc-300">
                   Autorizo o armazenamento dos dados enviados e o contato por
                   WhatsApp ou telefone para oportunidades profissionais
-                  relacionadas a obras e serviços de piso de concreto.
+                  relacionadas a obras e serviços de piso de concreto. Tratamento
+                  de dados conforme a LGPD, Lei nº 13.709/2018, sob diretrizes
+                  da ANPD.
                 </span>
               </label>
 

@@ -23,6 +23,9 @@ type Professional = {
   last_contact_at: string | null;
   created_at: string;
   updated_at: string;
+  referred_by: string | null;
+  referred_by_name: string | null;
+  referred_by_phone: string | null;
   skills: string[];
   experiences_count: number;
   notes_count: number;
@@ -624,7 +627,23 @@ export default function AdminProfessionalsPage() {
                                 {professional.whatsapp}
                               </strong>
                             </div>
+                            {professional.referred_by_name || professional.referred_by_phone ? (
+  <div className="mt-4 rounded-2xl border border-orange-800/50 bg-orange-950/20 p-4">
+    <p className="text-xs font-bold uppercase tracking-[0.14em] text-orange-400">
+      Indicação
+    </p>
 
+    <p className="mt-2 text-sm text-orange-100">
+      <strong>Nome:</strong>{" "}
+      {professional.referred_by_name ?? "Não informado"}
+    </p>
+
+    <p className="mt-1 text-sm text-orange-100/80">
+      <strong>WhatsApp:</strong>{" "}
+      {professional.referred_by_phone ?? "Não informado"}
+    </p>
+  </div>
+) : null}
                             <div>
                               <span className="block text-zinc-500">
                                 Experiência

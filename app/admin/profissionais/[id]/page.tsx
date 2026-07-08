@@ -26,6 +26,12 @@ type Professional = {
   last_contact_at: string | null;
   created_at: string;
   updated_at: string;
+  referred_by: string | null;
+  referred_by_name: string | null;
+  referred_by_phone: string | null;
+  consent_lgpd_reference: string | null;
+  consent_given_at: string | null;
+  consent_source: string | null;
 };
 
 type Skill = {
@@ -542,9 +548,42 @@ export default function ProfessionalProfilePage() {
                         label="Cadastro criado em"
                         value={formatDate(professional.created_at)}
                       />
+                      <InfoCard
+  label="Indicado por"
+  value={professional.referred_by_name ?? "Não informado"}
+/>
+
+<InfoCard
+  label="WhatsApp de quem indicou"
+  value={professional.referred_by_phone ?? "Não informado"}
+/>
                     </div>
                   </section>
+                  <section className="rounded-3xl border border-orange-800/60 bg-orange-950/20 p-5 sm:p-6">
+  <h2 className="text-xl font-bold text-white">Indicação e consentimento</h2>
 
+  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+    <InfoCard
+      label="Nome de quem indicou"
+      value={professional.referred_by_name ?? "Não informado"}
+    />
+
+    <InfoCard
+      label="WhatsApp de quem indicou"
+      value={professional.referred_by_phone ?? "Não informado"}
+    />
+
+    <InfoCard
+      label="Referência LGPD"
+      value={professional.consent_lgpd_reference ?? "Não informado"}
+    />
+
+    <InfoCard
+      label="Consentimento em"
+      value={formatDate(professional.consent_given_at)}
+    />
+  </div>
+</section>
                   <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
                     <h2 className="text-xl font-bold text-white">
                       Resumo profissional
