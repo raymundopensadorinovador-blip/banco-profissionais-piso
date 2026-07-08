@@ -338,6 +338,13 @@ export default function AdminProfessionalsPage() {
 >
   Enviar notificações
 </Link>
+
+<Link
+  href="/admin/oportunidade"
+  className="rounded-xl border border-orange-700 px-4 py-3 text-center text-sm font-semibold text-orange-200 transition hover:bg-orange-950/40"
+>
+  Editar oportunidade
+</Link>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/cadastro-profissional"
